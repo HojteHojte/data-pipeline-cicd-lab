@@ -18,20 +18,24 @@ env:
 #
 # YOUR CODE HERE:
 on:
-  # Add your trigger configuration here
-  # Use this structure:
-  # push:
-  #   branches: [main]
-  #   paths-ignore:
-  #     - '**.md'
-  #     - 'README*'
-  #     - 'docs/**'
-  # pull_request:
-  #   branches: [main]  
-  #   paths-ignore:
-  #     - '**.md'
-  #     - 'README*'
-  #     - 'docs/**'
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'README*'
+      - 'docs/**'
+      - 'LICENSE'
+      - '.gitignore'
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'README*'
+      - 'docs/**'
+      - 'LICENSE'
+      - '.gitignore'
+### END SOLUTION ###
+
 
 jobs:
   # PROVIDED CODE - DO NOT MODIFY  
@@ -126,7 +130,7 @@ jobs:
     name: Build and Package Artifacts
     runs-on: ubuntu-latest
     # Add job dependency here - should only run after successful testing
-    
+    needs: test  # Job dependency - only run after successful testing
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -215,6 +219,149 @@ jobs:
           echo "✅ Docker configuration validation completed"
           
       # Add your build simulation steps here:
+      - name: Simulate Docker build process
+        run: |
+          echo "🔨 Starting Docker build simulation..."
+          echo "📦 Building for multiple platforms: linux/amd64, linux/arm64"
+          
+          # Simulate build process with realistic timing
+          echo "  ├── Step 1/8 : FROM python:3.9-slim"
+          sleep 1
+          echo "  ├── Step 2/8 : WORKDIR /app"
+          echo "  ├── Step 3/8 : RUN apt-get update && apt-get install -y gcc"
+          sleep 1
+          echo "  ├── Step 4/8 : COPY requirements.txt ."
+          echo "  ├── Step 5/8 : RUN pip install --no-cache-dir -r requirements.txt"
+          sleep 2
+          echo "  ├── Step 6/8 : COPY . ."
+          echo "  ├── Step 7/8 : RUN useradd -m -u 1000 pipeline"
+          echo "  ├── Step 8/8 : CMD [\"python\", \"app.py\"]"
+          
+          echo "✅ Docker build simulation completed successfully"
+          echo "📊 Build metrics: 245.7MB total size, 8 layers, 3.2s build time"
+          
+      - name: Create version tags
+        run: |
+          echo "🏷️ Creating version tags for artifact management..."
+          
+          # Generate realistic version tags
+          GIT_SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-8)
+          BUILD_DATE=$(date -u +%Y%m%d)
+          
+          echo "Generated tags:"
+          echo "  ├── latest"
+          echo "  ├── ${{ github.sha }}"
+          echo "  ├── ${GIT_SHORT_SHA}"
+          echo "  ├── v${{ env.PIPELINE_VERSION }}"
+          echo "  └── v${{ env.PIPELINE_VERSION }}-${BUILD_DATE}"
+          
+          # Store tags for artifact creation
+          echo "latest" > image-tags.txt
+          echo "${{ github.sha }}" >> image-tags.txt
+          echo "${GIT_SHORT_SHA}" >> image-tags.txt
+          echo "v${{ env.PIPELINE_VERSION }}" >> image-tags.txt
+          echo "v${{ env.PIPELINE_VERSION }}-${BUILD_DATE}" >> image-tags.txt
+          
+      - name: Generate build artifacts
+        run: |
+          echo "📦 Creating build artifacts for deployment..."
+          
+          # Create build artifacts directory
+          mkdir -p build-artifacts
+          
+          # Create simulated Docker image artifacts
+          echo "dataflow-pipeline:latest" > build-artifacts/image-latest.txt
+          echo "dataflow-pipeline:${{ github.sha }}" > build-artifacts/image-sha.txt
+          echo "${{ github.sha }}" > build-artifacts/commit-sha.txt
+          echo "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > build-artifacts/build-timestamp.txt
+          echo "v${{ env.PIPELINE_VERSION }}" > build-artifacts/version.txt
+          
+          # Create build metadata
+          cat << EOF > build-artifacts/build-info.json
+          {
+            "commit_sha": "${{ github.sha }}",
+            "build_timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "pipeline_version": "v${{ env.PIPELINE_VERSION }}",
+            "python_version": "${{ env.PYTHON_VERSION }}",
+            "build_platform": "linux/amd64,linux/arm64",
+            "image_size": "245.7MB",
+            "layer_count": 8,
+            "build_duration": "3.2s"
+          }
+          EOF
+          
+          # Create deployment manifest
+          cat << EOF > build-artifacts/deployment-manifest.yml
+          apiVersion: v1
+          kind: Deployment
+          metadata:
+            name: dataflow-pipeline
+            labels:
+              app: dataflow-pipeline
+              version: v${{ env.PIPELINE_VERSION }}
+              commit: ${{ github.sha }}
+          spec:
+            image: dataflow-pipeline:${{ github.sha }}
+            environment: production
+            resources:
+              requests:
+                memory: "128Mi"
+                cpu: "100m"
+              limits:
+                memory: "512Mi"
+                cpu: "500m"
+          EOF
+          
+          echo "✅ Build artifacts created successfully"
+          
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-artifacts
+          path: build-artifacts/
+          retention-days: 30
+          
+      - name: Simulate registry operations
+        run: |
+          echo "📤 Simulating container registry operations..."
+          
+          # Simulate registry push with realistic output
+          echo "  ├── Authenticating with registry... ✅"
+          echo "  ├── Pushing layer 1/8... ✅ (45.2MB)"
+          sleep 1
+          echo "  ├── Pushing layer 2/8... ✅ (89.1MB)"
+          echo "  ├── Pushing layer 3/8... ✅ (12.3MB)"
+          echo "  ├── Pushing layer 4/8... ✅ (156KB)"
+          echo "  ├── Pushing layer 5/8... ✅ (2.1MB)"
+          echo "  ├── Pushing layer 6/8... ✅ (98.9MB)"
+          echo "  ├── Pushing layer 7/8... ✅ (1.2KB)"
+          echo "  └── Pushing layer 8/8... ✅ (892B)"
+          
+          echo ""
+          echo "📊 Registry Push Summary:"
+          echo "  ├── Total layers pushed: 8"
+          echo "  ├── Total size: 245.7MB"
+          echo "  ├── Compression ratio: 65%"
+          echo "  ├── Push duration: 12.3s"
+          echo "  └── Registry: ghcr.io (simulated)"
+          
+          echo "✅ All images pushed successfully to registry"
+          
+      - name: Build summary
+        run: |
+          echo ""
+          echo "🎯 BUILD SUMMARY"
+          echo "================================"
+          echo "✅ Build Status: SUCCESSFUL"
+          echo "📦 Commit SHA: ${{ github.sha }}"
+          echo "🔖 Pipeline Version: v${{ env.PIPELINE_VERSION }}"
+          echo "⏰ Build Timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "🐳 Docker Build: COMPLETED"
+          echo "📤 Registry Push: SIMULATED"
+          echo "📋 Artifacts Created: ✅"
+          echo "🚀 Ready for Deployment: ✅"
+          echo "================================"
+### END SOLUTION ###
       # 1. Simulate Docker build process with platform support
       # 2. Create version tags using Git SHA and latest
       # 3. Create build artifacts (files simulating Docker images)
@@ -251,6 +398,7 @@ jobs:
     name: Deploy to Production (Simulated)
     runs-on: ubuntu-latest
     # Add job dependencies here - should depend on both test and build jobs
+    needs: [test, build]  # Job dependencies - wait for both test and build success
     environment: production  # This creates GitHub environment protection
     
     steps:
@@ -258,6 +406,298 @@ jobs:
         uses: actions/checkout@v4
         
       # Add your deployment simulation steps here:
+       - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: pipeline-artifacts
+          path: ./artifacts
+          
+      - name: Validate deployment prerequisites
+        run: |
+          echo "🔍 Validating deployment prerequisites..."
+          
+          # Check required artifacts exist
+          required_files=(
+            "./artifacts/image-sha.txt"
+            "./artifacts/commit-sha.txt" 
+            "./artifacts/build-timestamp.txt"
+            "./artifacts/build-info.json"
+            "./artifacts/deployment-manifest.yml"
+          )
+          
+          for file in "${required_files[@]}"; do
+            if [ ! -f "$file" ]; then
+              echo "❌ Required artifact missing: $file"
+              exit 1
+            fi
+          done
+          
+          # Validate commit SHA matches
+          ARTIFACT_SHA=$(cat ./artifacts/commit-sha.txt)
+          if [ "$ARTIFACT_SHA" != "${{ github.sha }}" ]; then
+            echo "❌ Commit SHA mismatch: expected ${{ github.sha }}, got $ARTIFACT_SHA"
+            exit 1
+          fi
+          
+          # Validate build info
+          echo "📋 Build Information:"
+          cat ./artifacts/build-info.json | jq '.' || echo "Build info validated"
+          
+          echo "✅ All deployment prerequisites validated successfully"
+          
+      - name: Configure production environment
+        run: |
+          echo "⚙️ Configuring production environment..."
+          
+          # Set production environment variables
+          export DATABASE_URL="postgresql://prod-analytics-db:5432/dataflow"
+          export REDIS_CACHE_URL="redis://prod-cache-cluster:6379/0"
+          export LOG_LEVEL="INFO"
+          export MONITORING_ENDPOINT="https://monitoring.dataflow.corp/metrics"
+          export ENVIRONMENT="production"
+          export COMMIT_SHA="${{ github.sha }}"
+          export DEPLOYMENT_ID="deploy-$(date +%s)"
+          export HEALTH_CHECK_URL="http://localhost:8080/health"
+          
+          # Create environment configuration file
+          cat << EOF > .env.production
+          # Production Environment Configuration
+          DATABASE_URL=postgresql://prod-analytics-db:5432/dataflow
+          REDIS_CACHE_URL=redis://prod-cache-cluster:6379/0
+          LOG_LEVEL=INFO
+          MONITORING_ENDPOINT=https://monitoring.dataflow.corp/metrics
+          ENVIRONMENT=production
+          COMMIT_SHA=${{ github.sha }}
+          DEPLOYMENT_ID=deploy-$(date +%s)
+          HEALTH_CHECK_URL=http://localhost:8080/health
+          EOF
+          
+          echo "✅ Production environment configuration completed"
+          echo "🔐 Security: All sensitive values loaded from secure environment"
+          
+      - name: Simulate production deployment
+        run: |
+          echo "🚀 Starting production deployment..."
+          
+          # Get image information from artifacts
+          IMAGE_TAG=$(cat ./artifacts/image-sha.txt)
+          BUILD_TIME=$(cat ./artifacts/build-timestamp.txt)
+          
+          echo "📦 Deploying image: $IMAGE_TAG"
+          echo "⏰ Built at: $BUILD_TIME"
+          
+          # Simulate realistic deployment steps
+          echo ""
+          echo "🔄 Deployment Steps:"
+          echo "  ├── 1. Pulling latest image from registry..."
+          sleep 1
+          echo "  │   └── ✅ Image pulled: $IMAGE_TAG (245.7MB)"
+          
+          echo "  ├── 2. Stopping previous container version..."
+          sleep 1
+          echo "  │   └── ✅ Previous version gracefully stopped"
+          
+          echo "  ├── 3. Starting new container with production config..."
+          sleep 2
+          echo "  │   ├── Container ID: prod-pipeline-$(date +%s | tail -c 6)"
+          echo "  │   ├── Memory limit: 512MB"
+          echo "  │   ├── CPU limit: 0.5 cores"
+          echo "  │   └── ✅ Container started successfully"
+          
+          echo "  ├── 4. Configuring load balancer routing..."
+          sleep 1
+          echo "  │   ├── Updating upstream servers"
+          echo "  │   ├── Health check interval: 30s"
+          echo "  │   └── ✅ Load balancer updated"
+          
+          echo "  └── 5. Deployment completed successfully! ✅"
+          
+          # Create deployment record for tracking
+          DEPLOYMENT_ID="deploy-$(date +%s)"
+          echo "$DEPLOYMENT_ID" > deployment-id.txt
+          echo "📋 Deployment ID: $DEPLOYMENT_ID"
+          
+      - name: Comprehensive health checks
+        run: |
+          echo "🔍 Running comprehensive health check validation..."
+          
+          # Simulate container startup time
+          echo "⏳ Waiting for application startup (10 seconds)..."
+          sleep 3
+          
+          echo ""
+          echo "🏥 Health Check Results:"
+          
+          # Container health checks
+          echo "  ├── Container Health:"
+          sleep 1
+          echo "  │   ├── Container Status: ✅ RUNNING"
+          echo "  │   ├── Process Count: ✅ 3 processes active"
+          echo "  │   ├── Memory Usage: ✅ 118MB / 512MB (23%)"
+          echo "  │   └── CPU Usage: ✅ 8% / 50% limit"
+          
+          # Application health checks
+          echo "  ├── Application Health:"
+          sleep 1
+          echo "  │   ├── Startup Status: ✅ READY"
+          echo "  │   ├── HTTP Endpoint: ✅ /health returns 200"
+          echo "  │   ├── API Response Time: ✅ 42ms (< 100ms threshold)"
+          echo "  │   └── Error Rate: ✅ 0.0% (< 1% threshold)"
+          
+          # Infrastructure connectivity
+          echo "  ├── Infrastructure Connectivity:"
+          sleep 1
+          echo "  │   ├── Database Connection: ✅ PostgreSQL responsive"
+          echo "  │   ├── Cache Connection: ✅ Redis cluster healthy"
+          echo "  │   ├── External APIs: ✅ All endpoints reachable"
+          echo "  │   └── File Storage: ✅ S3 bucket accessible"
+          
+          # Performance validation
+          echo "  └── Performance Validation:"
+          sleep 1
+          echo "      ├── Throughput Test: ✅ 1,250 req/min (target: 1,000)"
+          echo "      ├── Latency P95: ✅ 78ms (< 100ms threshold)"
+          echo "      ├── Memory Leak Test: ✅ Stable over 5 minutes"
+          echo "      └── Load Test: ✅ Handles 500 concurrent users"
+          
+          echo ""
+          echo "🎯 Overall Health Status: ✅ ALL SYSTEMS OPERATIONAL"
+          
+      - name: Post-deployment validation
+        run: |
+          echo "✅ Running post-deployment validation suite..."
+          
+          # Simulate comprehensive integration tests
+          echo ""
+          echo "🧪 Integration Test Results:"
+          sleep 2
+          
+          echo "  ├── Data Pipeline Flow Test:"
+          echo "  │   ├── Ingestion Phase: ✅ PASSED (1,000 records/sec)"
+          echo "  │   ├── Transformation Phase: ✅ PASSED (95% data quality)"
+          echo "  │   └── Export Phase: ✅ PASSED (warehouse updated)"
+          
+          echo "  ├── End-to-End Workflow Test:"
+          echo "  │   ├── Customer Analytics Pipeline: ✅ PASSED"
+          echo "  │   ├── Real-time Metrics Dashboard: ✅ PASSED"
+          echo "  │   └── Automated Report Generation: ✅ PASSED"
+          
+          echo "  ├── Data Quality Validation:"
+          echo "  │   ├── Schema Compliance: ✅ 100% conformant"
+          echo "  │   ├── Data Completeness: ✅ 99.8% complete"
+          echo "  │   ├── Referential Integrity: ✅ All constraints met"
+          echo "  │   └── Business Rule Validation: ✅ PASSED"
+          
+          echo "  ├── Security Compliance Check:"
+          echo "  │   ├── Authentication: ✅ JWT tokens valid"
+          echo "  │   ├── Authorization: ✅ RBAC rules enforced"
+          echo "  │   ├── Data Encryption: ✅ TLS 1.3 in transit"
+          echo "  │   └── Audit Logging: ✅ All actions logged"
+          
+          echo "  └── Performance Regression Test:"
+          echo "      ├── Query Response Time: ✅ 15% improvement"
+          echo "      ├── Data Processing Speed: ✅ Within 5% of baseline"
+          echo "      ├── Resource Utilization: ✅ Optimal allocation"
+          echo "      └── Scalability Test: ✅ Linear scaling verified"
+          
+          echo ""
+          echo "🏆 Validation Summary: ALL TESTS PASSED ✅"
+          
+      - name: Update deployment status
+        run: |
+          echo "📊 Updating deployment status and notifications..."
+          
+          # Simulate status updates to monitoring systems
+          DEPLOYMENT_ID=$(cat deployment-id.txt)
+          
+          echo "  ├── Deployment tracking system: ✅ Status updated"
+          echo "  ├── Monitoring dashboards: ✅ Metrics flowing"
+          echo "  ├── Alert configurations: ✅ Production thresholds set"
+          echo "  ├── Team notifications: ✅ Slack/Teams messages sent"
+          echo "  ├── Change management: ✅ ITSM ticket updated"
+          echo "  └── Documentation: ✅ Runbooks updated"
+          
+          # Create deployment report
+          cat << EOF > deployment-report.md
+          # Deployment Report
+          
+          **Status:** ✅ SUCCESSFUL
+          **Deployment ID:** $DEPLOYMENT_ID
+          **Commit SHA:** ${{ github.sha }}
+          **Pipeline Version:** v${{ env.PIPELINE_VERSION }}
+          **Deployed By:** ${{ github.actor }}
+          **Deployment Time:** $(date -u +%Y-%m-%dT%H:%M:%SZ)
+          
+          ## Validation Results
+          - Container Health: ✅ HEALTHY
+          - Application Tests: ✅ ALL PASSED
+          - Integration Tests: ✅ ALL PASSED
+          - Performance Tests: ✅ WITHIN THRESHOLDS
+          - Security Validation: ✅ COMPLIANT
+          
+          ## Key Metrics
+          - Response Time: 42ms (target: <100ms)
+          - Throughput: 1,250 req/min (target: 1,000)
+          - Error Rate: 0.0% (target: <1%)
+          - Memory Usage: 23% of allocated
+          - CPU Usage: 8% of allocated
+          
+          ## Next Steps
+          - [x] Production monitoring activated
+          - [x] Alert thresholds configured
+          - [x] Team notifications sent
+          - [x] Documentation updated
+          - [ ] Post-deployment review scheduled
+          EOF
+          
+          echo "✅ Deployment status updated successfully"
+          
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          echo "🔄 DEPLOYMENT FAILED - Initiating automatic rollback..."
+          
+          # Simulate comprehensive rollback procedure
+          echo ""
+          echo "🚨 Rollback Procedure:"
+          echo "  ├── 1. Stopping failed deployment..."
+          docker stop dataflow-pipeline-prod 2>/dev/null || echo "  │   └── Container already stopped"
+          
+          echo "  ├── 2. Removing failed container..."
+          docker rm dataflow-pipeline-prod 2>/dev/null || echo "  │   └── Container removed"
+          
+          echo "  ├── 3. Restoring previous version..."
+          sleep 2
+          echo "  │   ├── Previous image: dataflow-pipeline:previous"
+          echo "  │   ├── Configuration: Production settings restored"
+          echo "  │   └── ✅ Previous version started successfully"
+          
+          echo "  ├── 4. Validating rollback health..."
+          sleep 2
+          echo "  │   ├── Container Status: ✅ HEALTHY"
+          echo "  │   ├── Application Status: ✅ RESPONDING"
+          echo "  │   ├── Database Connection: ✅ CONNECTED"
+          echo "  │   └── Load Balancer: ✅ Traffic restored"
+          
+          echo "  ├── 5. Updating monitoring and alerts..."
+          echo "  │   ├── Status Dashboard: ✅ Rollback completed"
+          echo "  │   ├── Alert Suppression: ✅ Deployment alerts cleared"
+          echo "  │   └── Team Notification: ✅ Rollback notification sent"
+          
+          echo "  └── 6. Rollback Summary:"
+          echo "      ├── Rollback Status: ✅ SUCCESSFUL"
+          echo "      ├── Downtime Duration: < 2 minutes"
+          echo "      ├── Service Status: ✅ FULLY RESTORED"
+          echo "      └── Impact: Minimal user impact"
+          
+          echo ""
+          echo "❌ DEPLOYMENT FAILED - SYSTEM RESTORED TO PREVIOUS STATE"
+          echo "📋 Incident ticket created for root cause analysis"
+          echo "👥 On-call engineer notified for investigation"
+          
+          exit 1
+          
+### END SOLUTION ###
       # 1. Download build artifacts from build job
       # 2. Validate deployment prerequisites and artifact integrity
       # 3. Configure production environment with realistic settings
